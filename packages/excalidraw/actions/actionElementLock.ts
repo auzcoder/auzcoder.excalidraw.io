@@ -1,11 +1,16 @@
+import { KEYS, arrayToMap } from "@excalidraw/common";
+
+import { newElementWith } from "@excalidraw/element/mutateElement";
+
+import { isFrameLikeElement } from "@excalidraw/element/typeChecks";
+
+import type { ExcalidrawElement } from "@excalidraw/element/types";
+
 import { LockedIcon, UnlockedIcon } from "../components/icons";
-import { newElementWith } from "../element/mutateElement";
-import { isFrameLikeElement } from "../element/typeChecks";
-import type { ExcalidrawElement } from "../element/types";
-import { KEYS } from "../keys";
+
 import { getSelectedElements } from "../scene";
-import { StoreAction } from "../store";
-import { arrayToMap } from "../utils";
+import { CaptureUpdateAction } from "../store";
+
 import { register } from "./register";
 
 const shouldLock = (elements: readonly ExcalidrawElement[]) =>
@@ -67,7 +72,7 @@ export const actionToggleElementLock = register({
           ? null
           : appState.selectedLinearElement,
       },
-      storeAction: StoreAction.CAPTURE,
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
     };
   },
   keyTest: (event, appState, elements, app) => {
@@ -85,7 +90,6 @@ export const actionToggleElementLock = register({
 
 export const actionUnlockAllElements = register({
   name: "unlockAllElements",
-  paletteName: "Unlock all elements",
   trackEvent: { category: "canvas" },
   viewMode: false,
   icon: UnlockedIcon,
@@ -112,7 +116,7 @@ export const actionUnlockAllElements = register({
           lockedElements.map((el) => [el.id, true]),
         ),
       },
-      storeAction: StoreAction.CAPTURE,
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
     };
   },
   label: "labels.elementLock.unlockAll",

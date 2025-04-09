@@ -1,4 +1,16 @@
-import ReactDOM from "react-dom";
+import React from "react";
+import { vi } from "vitest";
+
+import { KEYS, reseed } from "@excalidraw/common";
+
+import { setDateTimeForTests } from "@excalidraw/common";
+
+import { copiedStyles } from "../actions/actionStyles";
+import { Excalidraw } from "../index";
+import * as StaticScene from "../renderer/staticScene";
+
+import { API } from "./helpers/api";
+import { UI, Pointer, Keyboard } from "./helpers/ui";
 import {
   render,
   fireEvent,
@@ -10,17 +22,11 @@ import {
   queryAllByText,
   waitFor,
   togglePopover,
+  unmountComponent,
 } from "./test-utils";
-import { Excalidraw } from "../index";
-import * as StaticScene from "../renderer/staticScene";
-import { reseed } from "../random";
-import { UI, Pointer, Keyboard } from "./helpers/ui";
-import { KEYS } from "../keys";
+
 import type { ShortcutName } from "../actions/shortcuts";
-import { copiedStyles } from "../actions/actionStyles";
-import { API } from "./helpers/api";
-import { setDateTimeForTests } from "../utils";
-import { vi } from "vitest";
+import type { ActionName } from "../actions/types";
 
 const checkpoint = (name: string) => {
   expect(renderStaticScene.mock.calls.length).toMatchSnapshot(
@@ -36,8 +42,7 @@ const checkpoint = (name: string) => {
 
 const mouse = new Pointer("mouse");
 
-// Unmount ReactDOM from root
-ReactDOM.unmountComponentAtNode(document.getElementById("root")!);
+unmountComponent();
 
 const renderStaticScene = vi.spyOn(StaticScene, "renderStaticScene");
 beforeEach(() => {
@@ -114,10 +119,11 @@ describe("contextMenu element", () => {
     const contextMenu = UI.queryContextMenu();
     const contextMenuOptions =
       contextMenu?.querySelectorAll(".context-menu li");
-    const expectedShortcutNames: ShortcutName[] = [
+    const expectedContextMenuItems: ActionName[] = [
       "cut",
       "copy",
       "paste",
+      "wrapSelectionInFrame",
       "copyStyles",
       "pasteStyles",
       "deleteSelectedElements",
@@ -130,14 +136,15 @@ describe("contextMenu element", () => {
       "bringToFront",
       "duplicateSelection",
       "hyperlink",
+      "copyElementLink",
       "toggleElementLock",
     ];
 
     expect(contextMenu).not.toBeNull();
-    expect(contextMenuOptions?.length).toBe(expectedShortcutNames.length);
-    expectedShortcutNames.forEach((shortcutName) => {
+    expect(contextMenuOptions?.length).toBe(expectedContextMenuItems.length);
+    expectedContextMenuItems.forEach((item) => {
       expect(
-        contextMenu?.querySelector(`li[data-testid="${shortcutName}"]`),
+        contextMenu?.querySelector(`li[data-testid="${item}"]`),
       ).not.toBeNull();
     });
   });
@@ -159,7 +166,7 @@ describe("contextMenu element", () => {
       width: 200,
       backgroundColor: "red",
     });
-    h.elements = [rect1, rect2];
+    API.setElements([rect1, rect2]);
     API.setSelectedElements([rect1]);
 
     // lower z-index
@@ -210,6 +217,7 @@ describe("contextMenu element", () => {
       "cut",
       "copy",
       "paste",
+      "wrapSelectionInFrame",
       "copyStyles",
       "pasteStyles",
       "deleteSelectedElements",
@@ -262,13 +270,15 @@ describe("contextMenu element", () => {
     const contextMenu = UI.queryContextMenu();
     const contextMenuOptions =
       contextMenu?.querySelectorAll(".context-menu li");
-    const expectedShortcutNames: ShortcutName[] = [
+    const expectedContextMenuItems: ActionName[] = [
       "cut",
       "copy",
       "paste",
+      "wrapSelectionInFrame",
       "copyStyles",
       "pasteStyles",
       "deleteSelectedElements",
+      "copyElementLink",
       "ungroup",
       "addToLibrary",
       "flipHorizontal",
@@ -282,10 +292,10 @@ describe("contextMenu element", () => {
     ];
 
     expect(contextMenu).not.toBeNull();
-    expect(contextMenuOptions?.length).toBe(expectedShortcutNames.length);
-    expectedShortcutNames.forEach((shortcutName) => {
+    expect(contextMenuOptions?.length).toBe(expectedContextMenuItems.length);
+    expectedContextMenuItems.forEach((item) => {
       expect(
-        contextMenu?.querySelector(`li[data-testid="${shortcutName}"]`),
+        contextMenu?.querySelector(`li[data-testid="${item}"]`),
       ).not.toBeNull();
     });
   });
@@ -331,7 +341,7 @@ describe("contextMenu element", () => {
     // Roughness
     fireEvent.click(screen.getByTitle("Cartoonist"));
     // Opacity
-    fireEvent.change(screen.getByLabelText("Opacity"), {
+    fireEvent.change(screen.getByTestId("opacity"), {
       target: { value: "60" },
     });
 
@@ -607,7 +617,7 @@ describe("contextMenu element", () => {
       fillStyle: "solid",
       groupIds: ["g1"],
     });
-    h.elements = [rectangle1, rectangle2];
+    API.setElements([rectangle1, rectangle2]);
 
     mouse.rightClickAt(50, 50);
     expect(API.getSelectedElements().length).toBe(2);

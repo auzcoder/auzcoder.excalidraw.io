@@ -1,21 +1,30 @@
-import { KEYS } from "../keys";
-import { isInvisiblySmallElement } from "../element";
-import { arrayToMap, updateActiveTool } from "../utils";
-import { ToolButton } from "../components/ToolButton";
-import { done } from "../components/icons";
-import { t } from "../i18n";
-import { register } from "./register";
-import { mutateElement } from "../element/mutateElement";
-import { isPathALoop } from "../math";
-import { LinearElementEditor } from "../element/linearElementEditor";
+import { pointFrom } from "@excalidraw/math";
+
 import {
   maybeBindLinearElement,
   bindOrUnbindLinearElement,
-} from "../element/binding";
-import { isBindingElement, isLinearElement } from "../element/typeChecks";
-import type { AppState } from "../types";
+} from "@excalidraw/element/binding";
+import { LinearElementEditor } from "@excalidraw/element/linearElementEditor";
+import { mutateElement } from "@excalidraw/element/mutateElement";
+import {
+  isBindingElement,
+  isLinearElement,
+} from "@excalidraw/element/typeChecks";
+
+import { KEYS, arrayToMap, updateActiveTool } from "@excalidraw/common";
+import { isPathALoop } from "@excalidraw/element/shapes";
+
+import { isInvisiblySmallElement } from "@excalidraw/element/sizeHelpers";
+
+import { t } from "../i18n";
 import { resetCursor } from "../cursor";
-import { StoreAction } from "../store";
+import { done } from "../components/icons";
+import { ToolButton } from "../components/ToolButton";
+import { CaptureUpdateAction } from "../store";
+
+import { register } from "./register";
+
+import type { AppState } from "../types";
 
 export const actionFinalize = register({
   name: "finalize",
@@ -38,6 +47,7 @@ export const actionFinalize = register({
             startBindingElement,
             endBindingElement,
             elementsMap,
+            scene,
           );
         }
         return {
@@ -49,9 +59,8 @@ export const actionFinalize = register({
             ...appState,
             cursorButton: "up",
             editingLinearElement: null,
-            selectedLinearElement: null,
           },
-          storeAction: StoreAction.CAPTURE,
+          captureUpdate: CaptureUpdateAction.IMMEDIATELY,
         };
       }
     }
@@ -72,8 +81,8 @@ export const actionFinalize = register({
 
     const multiPointElement = appState.multiElement
       ? appState.multiElement
-      : appState.editingElement?.type === "freedraw"
-      ? appState.editingElement
+      : appState.newElement?.type === "freedraw"
+      ? appState.newElement
       : null;
 
     if (multiPointElement) {
@@ -112,10 +121,10 @@ export const actionFinalize = register({
           const linePoints = multiPointElement.points;
           const firstPoint = linePoints[0];
           mutateElement(multiPointElement, {
-            points: linePoints.map((point, index) =>
+            points: linePoints.map((p, index) =>
               index === linePoints.length - 1
-                ? ([firstPoint[0], firstPoint[1]] as const)
-                : point,
+                ? pointFrom(firstPoint[0], firstPoint[1])
+                : p,
             ),
           });
         }
@@ -131,7 +140,13 @@ export const actionFinalize = register({
           -1,
           arrayToMap(elements),
         );
-        maybeBindLinearElement(multiPointElement, appState, { x, y }, app);
+        maybeBindLinearElement(
+          multiPointElement,
+          appState,
+          { x, y },
+          elementsMap,
+          elements,
+        );
       }
     }
 
@@ -169,9 +184,10 @@ export const actionFinalize = register({
             ? appState.activeTool
             : activeTool,
         activeEmbeddable: null,
-        draggingElement: null,
+        newElement: null,
+        selectionElement: null,
         multiElement: null,
-        editingElement: null,
+        editingTextElement: null,
         startBoundElement: null,
         suggestedBindings: [],
         selectedElementIds:
@@ -191,13 +207,13 @@ export const actionFinalize = register({
         pendingImageElementId: null,
       },
       // TODO: #7348 we should not capture everything, but if we don't, it leads to incosistencies -> revisit
-      storeAction: StoreAction.CAPTURE,
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
     };
   },
   keyTest: (event, appState) =>
     (event.key === KEYS.ESCAPE &&
       (appState.editingLinearElement !== null ||
-        (!appState.draggingElement && appState.multiElement === null))) ||
+        (!appState.newElement && appState.multiElement === null))) ||
     ((event.key === KEYS.ESCAPE || event.key === KEYS.ENTER) &&
       appState.multiElement !== null),
   PanelComponent: ({ appState, updateData, data }) => (
@@ -209,6 +225,7 @@ export const actionFinalize = register({
       onClick={updateData}
       visible={appState.multiElement != null}
       size={data?.size || "medium"}
+      style={{ pointerEvents: "all" }}
     />
   ),
 });

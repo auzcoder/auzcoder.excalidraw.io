@@ -1,32 +1,37 @@
-import type { Action, ActionResult } from "./types";
-import { UndoIcon, RedoIcon } from "../components/icons";
-import { ToolButton } from "../components/ToolButton";
-import { t } from "../i18n";
-import type { History } from "../history";
-import { HistoryChangedEvent } from "../history";
-import type { AppState } from "../types";
-import { KEYS } from "../keys";
-import { arrayToMap } from "../utils";
-import { isWindows } from "../constants";
-import type { SceneElementsMap } from "../element/types";
-import type { Store } from "../store";
-import { StoreAction } from "../store";
-import { useEmitter } from "../hooks/useEmitter";
+import { isWindows, KEYS, matchKey, arrayToMap } from "@excalidraw/common";
 
-const writeData = (
+import type { SceneElementsMap } from "@excalidraw/element/types";
+
+import { ToolButton } from "../components/ToolButton";
+import { UndoIcon, RedoIcon } from "../components/icons";
+import { HistoryChangedEvent } from "../history";
+import { useEmitter } from "../hooks/useEmitter";
+import { t } from "../i18n";
+import { CaptureUpdateAction } from "../store";
+
+import type { History } from "../history";
+import type { Store } from "../store";
+import type { AppClassProperties, AppState } from "../types";
+import type { Action, ActionResult } from "./types";
+
+const executeHistoryAction = (
+  app: AppClassProperties,
   appState: Readonly<AppState>,
   updater: () => [SceneElementsMap, AppState] | void,
 ): ActionResult => {
   if (
     !appState.multiElement &&
     !appState.resizingElement &&
-    !appState.editingElement &&
-    !appState.draggingElement
+    !appState.editingTextElement &&
+    !appState.newElement &&
+    !appState.selectedElementsAreBeingDragged &&
+    !appState.selectionElement &&
+    !app.flowChartCreator.isCreatingChart
   ) {
     const result = updater();
 
     if (!result) {
-      return { storeAction: StoreAction.NONE };
+      return { captureUpdate: CaptureUpdateAction.EVENTUALLY };
     }
 
     const [nextElementsMap, nextAppState] = result;
@@ -35,11 +40,11 @@ const writeData = (
     return {
       appState: nextAppState,
       elements: nextElements,
-      storeAction: StoreAction.UPDATE,
+      captureUpdate: CaptureUpdateAction.NEVER,
     };
   }
 
-  return { storeAction: StoreAction.NONE };
+  return { captureUpdate: CaptureUpdateAction.EVENTUALLY };
 };
 
 type ActionCreator = (history: History, store: Store) => Action;
@@ -50,8 +55,8 @@ export const createUndoAction: ActionCreator = (history, store) => ({
   icon: UndoIcon,
   trackEvent: { category: "history" },
   viewMode: false,
-  perform: (elements, appState) =>
-    writeData(appState, () =>
+  perform: (elements, appState, value, app) =>
+    executeHistoryAction(app, appState, () =>
       history.undo(
         arrayToMap(elements) as SceneElementsMap, // TODO: #7348 refactor action manager to already include `SceneElementsMap`
         appState,
@@ -59,9 +64,7 @@ export const createUndoAction: ActionCreator = (history, store) => ({
       ),
     ),
   keyTest: (event) =>
-    event[KEYS.CTRL_OR_CMD] &&
-    event.key.toLowerCase() === KEYS.Z &&
-    !event.shiftKey,
+    event[KEYS.CTRL_OR_CMD] && matchKey(event, KEYS.Z) && !event.shiftKey,
   PanelComponent: ({ updateData, data }) => {
     const { isUndoStackEmpty } = useEmitter<HistoryChangedEvent>(
       history.onHistoryChangedEmitter,
@@ -91,8 +94,8 @@ export const createRedoAction: ActionCreator = (history, store) => ({
   icon: RedoIcon,
   trackEvent: { category: "history" },
   viewMode: false,
-  perform: (elements, appState) =>
-    writeData(appState, () =>
+  perform: (elements, appState, _, app) =>
+    executeHistoryAction(app, appState, () =>
       history.redo(
         arrayToMap(elements) as SceneElementsMap, // TODO: #7348 refactor action manager to already include `SceneElementsMap`
         appState,
@@ -100,10 +103,8 @@ export const createRedoAction: ActionCreator = (history, store) => ({
       ),
     ),
   keyTest: (event) =>
-    (event[KEYS.CTRL_OR_CMD] &&
-      event.shiftKey &&
-      event.key.toLowerCase() === KEYS.Z) ||
-    (isWindows && event.ctrlKey && !event.shiftKey && event.key === KEYS.Y),
+    (event[KEYS.CTRL_OR_CMD] && event.shiftKey && matchKey(event, KEYS.Z)) ||
+    (isWindows && event.ctrlKey && !event.shiftKey && matchKey(event, KEYS.Y)),
   PanelComponent: ({ updateData, data }) => {
     const { isRedoStackEmpty } = useEmitter(
       history.onHistoryChangedEmitter,

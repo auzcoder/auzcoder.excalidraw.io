@@ -6,12 +6,13 @@
 // Note: when adding new icons, review https://developer.mozilla.org/en-US/docs/Mozilla/Developer_guide/RTL_Guidelines
 // to determine whether or not the icons should be mirrored in right-to-left languages.
 
+import clsx from "clsx";
+import oc from "open-color";
 import React from "react";
 
-import oc from "open-color";
-import clsx from "clsx";
-import type { Theme } from "../element/types";
-import { THEME } from "../constants";
+import { THEME } from "@excalidraw/common";
+
+import type { Theme } from "@excalidraw/element/types";
 
 export const iconFillColor = (theme: Theme) => "var(--icon-fill-color)";
 
@@ -273,6 +274,21 @@ export const SelectionIcon = createIcon(
   { fill: "none", width: 22, height: 22, strokeWidth: 1.25 },
 );
 
+export const LassoIcon = createIcon(
+  <g
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth={1.5}
+  >
+    <path d="M4.028 13.252c-.657 -.972 -1.028 -2.078 -1.028 -3.252c0 -3.866 4.03 -7 9 -7s9 3.134 9 7s-4.03 7 -9 7c-1.913 0 -3.686 -.464 -5.144 -1.255" />
+    <path d="M5 15m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+    <path d="M5 17c0 1.42 .316 2.805 1 4" />
+  </g>,
+
+  { fill: "none", width: 22, height: 22, strokeWidth: 1.25 },
+);
+
 // tabler-icons: square
 export const RectangleIcon = createIcon(
   <g strokeWidth="1.5">
@@ -405,7 +421,7 @@ export const TrashIcon = createIcon(
 );
 
 export const EmbedIcon = createIcon(
-  <g strokeWidth="1.25">
+  <g strokeWidth="1.5">
     <polyline points="12 16 18 10 12 4" />
     <polyline points="8 4 2 10 8 16" />
   </g>,
@@ -1216,11 +1232,12 @@ export const EdgeRoundIcon = createIcon(
 );
 
 export const ArrowheadNoneIcon = createIcon(
-  <path d="M6 10H34" stroke="currentColor" strokeWidth={2} fill="none" />,
-  {
-    width: 40,
-    height: 20,
-  },
+  <g stroke="currentColor" opacity={0.3} strokeWidth={2}>
+    <path d="M12 12l9 0" />
+    <path d="M3 9l6 6" />
+    <path d="M3 15l6 -6" />
+  </g>,
+  tablerIconProps,
 );
 
 export const ArrowheadArrowIcon = React.memo(
@@ -1352,6 +1369,54 @@ export const ArrowheadDiamondOutlineIcon = React.memo(
     ),
 );
 
+export const ArrowheadCrowfootIcon = React.memo(
+  ({ flip = false }: { flip?: boolean }) =>
+    createIcon(
+      <g
+        stroke="currentColor"
+        fill="none"
+        transform={flip ? "" : "translate(40, 0) scale(-1, 1)"}
+        strokeLinejoin="round"
+        strokeWidth={2}
+      >
+        <path d="M34,10 H6 M15,10 L7,5 M15,10 L7,15" />
+      </g>,
+      { width: 40, height: 20 },
+    ),
+);
+
+export const ArrowheadCrowfootOneIcon = React.memo(
+  ({ flip = false }: { flip?: boolean }) =>
+    createIcon(
+      <g
+        stroke="currentColor"
+        fill="none"
+        transform={flip ? "" : "translate(40, 0) scale(-1, 1)"}
+        strokeLinejoin="round"
+        strokeWidth={2}
+      >
+        <path d="M34,10 H6 M15,10 L15,15 L15,5" />
+      </g>,
+      { width: 40, height: 20 },
+    ),
+);
+
+export const ArrowheadCrowfootOneOrManyIcon = React.memo(
+  ({ flip = false }: { flip?: boolean }) =>
+    createIcon(
+      <g
+        stroke="currentColor"
+        fill="none"
+        transform={flip ? "" : "translate(40, 0) scale(-1, 1)"}
+        strokeLinejoin="round"
+        strokeWidth={2}
+      >
+        <path d="M34,10 H6 M15,10 L15,16 L15,4 M15,10 L7,5 M15,10 L7,15" />
+      </g>,
+      { width: 40, height: 20 },
+    ),
+);
+
 export const FontSizeSmallIcon = createIcon(
   <>
     <g clipPath="url(#a)">
@@ -1435,6 +1500,27 @@ export const fontSizeIcon = createIcon(
     <path d="M18 12v7" />
     <path d="M17 19h2" />
   </g>,
+  tablerIconProps,
+);
+
+export const FontFamilyHeadingIcon = createIcon(
+  <>
+    <g
+      stroke="currentColor"
+      strokeWidth="1.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M7 12h10" />
+      <path d="M7 5v14" />
+      <path d="M17 5v14" />
+      <path d="M15 19h4" />
+      <path d="M15 5h4" />
+      <path d="M5 19h4" />
+      <path d="M5 5h4" />
+    </g>
+  </>,
   tablerIconProps,
 );
 
@@ -1571,6 +1657,18 @@ export const TextAlignMiddleIcon = React.memo(({ theme }: { theme: Theme }) =>
     </g>,
     tablerIconProps,
   ),
+);
+
+export const angleIcon = createIcon(
+  <g>
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M21 19h-18l9 -15" />
+    <path d="M20.615 15.171h.015" />
+    <path d="M19.515 11.771h.015" />
+    <path d="M17.715 8.671h.015" />
+    <path d="M15.415 5.971h.015" />
+  </g>,
+  tablerIconProps,
 );
 
 export const publishIcon = createIcon(
@@ -2058,6 +2156,83 @@ export const lineEditorIcon = createIcon(
     <path d="M17 3m0 1a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1z" />
     <path d="M3 17m0 1a1 1 0 0 1 1 -1h2a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1z" />
     <path d="M17 5c-6.627 0 -12 5.373 -12 12" />
+  </g>,
+  tablerIconProps,
+);
+
+// arrow-up-right (modified)
+export const sharpArrowIcon = createIcon(
+  <g>
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M6 18l12 -12" />
+    <path d="M18 10v-4h-4" />
+  </g>,
+  tablerIconProps,
+);
+
+// arrow-guide (modified)
+export const elbowArrowIcon = createIcon(
+  <g>
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M4,19L10,19C11.097,19 12,18.097 12,17L12,9C12,7.903 12.903,7 14,7L21,7" />
+    <path d="M18 4l3 3l-3 3" />
+  </g>,
+  tablerIconProps,
+);
+
+// arrow-ramp-right-2 (heavily modified)
+export const roundArrowIcon = createIcon(
+  <g>
+    <path d="M16,12L20,9L16,6" />
+    <path d="M6 20c0 -6.075 4.925 -11 11 -11h3" />
+  </g>,
+  tablerIconProps,
+);
+
+export const collapseDownIcon = createIcon(
+  <g>
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M6 9l6 6l6 -6" />
+  </g>,
+  tablerIconProps,
+);
+
+export const collapseUpIcon = createIcon(
+  <g>
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M6 15l6 -6l6 6" />
+  </g>,
+  tablerIconProps,
+);
+
+export const upIcon = createIcon(
+  <g>
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M6 15l6 -6l6 6" />
+  </g>,
+  tablerIconProps,
+);
+
+export const cropIcon = createIcon(
+  <g strokeWidth="1.25">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M8 5v10a1 1 0 0 0 1 1h10" />
+    <path d="M5 8h10a1 1 0 0 1 1 1v10" />
+  </g>,
+  tablerIconProps,
+);
+
+export const elementLinkIcon = createIcon(
+  <g>
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M5 5m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+    <path d="M19 5m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+    <path d="M5 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+    <path d="M19 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+    <path d="M5 7l0 10" />
+    <path d="M7 5l10 0" />
+    <path d="M7 19l10 0" />
+    <path d="M19 7l0 10" />
   </g>,
   tablerIconProps,
 );

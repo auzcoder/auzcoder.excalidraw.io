@@ -1,21 +1,28 @@
-import ReactDOM from "react-dom";
-import { render, fireEvent } from "./test-utils";
-import { Excalidraw } from "../index";
-import * as StaticScene from "../renderer/staticScene";
-import * as InteractiveCanvas from "../renderer/interactiveScene";
-import { reseed } from "../random";
-import { bindOrUnbindLinearElement } from "../element/binding";
+import React from "react";
+import { vi } from "vitest";
+
+import { bindOrUnbindLinearElement } from "@excalidraw/element/binding";
+
+import { KEYS, reseed } from "@excalidraw/common";
+
+import "@excalidraw/utils/test-utils";
+
 import type {
   ExcalidrawLinearElement,
   NonDeleted,
   ExcalidrawRectangleElement,
-} from "../element/types";
-import { UI, Pointer, Keyboard } from "./helpers/ui";
-import { KEYS } from "../keys";
-import { vi } from "vitest";
+} from "@excalidraw/element/types";
 
-// Unmount ReactDOM from root
-ReactDOM.unmountComponentAtNode(document.getElementById("root")!);
+import type Scene from "@excalidraw/excalidraw/scene/Scene";
+
+import { Excalidraw } from "../index";
+import * as InteractiveCanvas from "../renderer/interactiveScene";
+import * as StaticScene from "../renderer/staticScene";
+
+import { UI, Pointer, Keyboard } from "./helpers/ui";
+import { render, fireEvent, act, unmountComponent } from "./test-utils";
+
+unmountComponent();
 
 const renderInteractiveScene = vi.spyOn(
   InteractiveCanvas,
@@ -46,9 +53,9 @@ describe("move element", () => {
       fireEvent.pointerUp(canvas);
 
       expect(renderInteractiveScene.mock.calls.length).toMatchInlineSnapshot(
-        `6`,
+        `5`,
       );
-      expect(renderStaticScene.mock.calls.length).toMatchInlineSnapshot(`6`);
+      expect(renderStaticScene.mock.calls.length).toMatchInlineSnapshot(`5`);
       expect(h.state.selectionElement).toBeNull();
       expect(h.elements.length).toEqual(1);
       expect(h.state.selectedElementIds[h.elements[0].id]).toBeTruthy();
@@ -79,21 +86,24 @@ describe("move element", () => {
     const rectB = UI.createElement("rectangle", { x: 200, y: 0, size: 300 });
     const arrow = UI.createElement("arrow", { x: 110, y: 50, size: 80 });
     const elementsMap = h.app.scene.getNonDeletedElementsMap();
-    // bind line to two rectangles
-    bindOrUnbindLinearElement(
-      arrow.get() as NonDeleted<ExcalidrawLinearElement>,
-      rectA.get() as ExcalidrawRectangleElement,
-      rectB.get() as ExcalidrawRectangleElement,
-      elementsMap,
-    );
+    act(() => {
+      // bind line to two rectangles
+      bindOrUnbindLinearElement(
+        arrow.get() as NonDeleted<ExcalidrawLinearElement>,
+        rectA.get() as ExcalidrawRectangleElement,
+        rectB.get() as ExcalidrawRectangleElement,
+        elementsMap,
+        {} as Scene,
+      );
+    });
 
     // select the second rectangle
     new Pointer("mouse").clickOn(rectB);
 
     expect(renderInteractiveScene.mock.calls.length).toMatchInlineSnapshot(
-      `20`,
+      `17`,
     );
-    expect(renderStaticScene.mock.calls.length).toMatchInlineSnapshot(`17`);
+    expect(renderStaticScene.mock.calls.length).toMatchInlineSnapshot(`13`);
     expect(h.state.selectionElement).toBeNull();
     expect(h.elements.length).toEqual(3);
     expect(h.state.selectedElementIds[rectB.id]).toBeTruthy();
@@ -118,10 +128,8 @@ describe("move element", () => {
     expect(h.state.selectedElementIds[rectB.id]).toBeTruthy();
     expect([rectA.x, rectA.y]).toEqual([0, 0]);
     expect([rectB.x, rectB.y]).toEqual([201, 2]);
-    expect([Math.round(arrow.x), Math.round(arrow.y)]).toEqual([110, 50]);
-    expect([Math.round(arrow.width), Math.round(arrow.height)]).toEqual([
-      81, 81,
-    ]);
+    expect([[arrow.x, arrow.y]]).toCloselyEqualPoints([[107.07, 47.07]]);
+    expect([[arrow.width, arrow.height]]).toCloselyEqualPoints([[86.86, 87.3]]);
 
     h.elements.forEach((element) => expect(element).toMatchSnapshot());
   });
@@ -141,9 +149,9 @@ describe("duplicate element on move when ALT is clicked", () => {
       fireEvent.pointerUp(canvas);
 
       expect(renderInteractiveScene.mock.calls.length).toMatchInlineSnapshot(
-        `6`,
+        `5`,
       );
-      expect(renderStaticScene.mock.calls.length).toMatchInlineSnapshot(`6`);
+      expect(renderStaticScene.mock.calls.length).toMatchInlineSnapshot(`5`);
       expect(h.state.selectionElement).toBeNull();
       expect(h.elements.length).toEqual(1);
       expect(h.state.selectedElementIds[h.elements[0].id]).toBeTruthy();

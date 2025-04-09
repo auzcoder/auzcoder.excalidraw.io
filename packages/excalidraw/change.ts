@@ -1,49 +1,67 @@
-import { ENV } from "./constants";
-import type { BindableProp, BindingProp } from "./element/binding";
+import {
+  arrayToMap,
+  arrayToObject,
+  assertNever,
+  isDevEnv,
+  isShallowEqual,
+  isTestEnv,
+  toBrandedType,
+} from "@excalidraw/common";
 import {
   BoundElement,
   BindableElement,
   bindingProperties,
   updateBoundElements,
-} from "./element/binding";
-import { LinearElementEditor } from "./element/linearElementEditor";
-import type { ElementUpdate } from "./element/mutateElement";
-import { mutateElement, newElementWith } from "./element/mutateElement";
+} from "@excalidraw/element/binding";
+import { LinearElementEditor } from "@excalidraw/element/linearElementEditor";
+import {
+  mutateElement,
+  newElementWith,
+} from "@excalidraw/element/mutateElement";
 import {
   getBoundTextElementId,
   redrawTextBoundingBox,
-} from "./element/textElement";
+} from "@excalidraw/element/textElement";
 import {
   hasBoundTextElement,
   isBindableElement,
   isBoundToContainer,
+  isImageElement,
   isTextElement,
-} from "./element/typeChecks";
+} from "@excalidraw/element/typeChecks";
+
+import { getNonDeletedGroupIds } from "@excalidraw/element/groups";
+
+import {
+  orderByFractionalIndex,
+  syncMovedIndices,
+} from "@excalidraw/element/fractionalIndex";
+
+import type { BindableProp, BindingProp } from "@excalidraw/element/binding";
+
+import type { ElementUpdate } from "@excalidraw/element/mutateElement";
+
 import type {
   ExcalidrawElement,
+  ExcalidrawImageElement,
   ExcalidrawLinearElement,
   ExcalidrawTextElement,
   NonDeleted,
+  Ordered,
   OrderedExcalidrawElement,
   SceneElementsMap,
-} from "./element/types";
-import { orderByFractionalIndex, syncMovedIndices } from "./fractionalIndex";
-import { getNonDeletedGroupIds } from "./groups";
+} from "@excalidraw/element/types";
+
+import type { SubtypeOf, ValueOf } from "@excalidraw/common/utility-types";
+
 import { getObservedAppState } from "./store";
+
 import type {
   AppState,
   ObservedAppState,
   ObservedElementsAppState,
   ObservedStandaloneAppState,
 } from "./types";
-import type { SubtypeOf, ValueOf } from "./utility-types";
-import {
-  arrayToMap,
-  arrayToObject,
-  assertNever,
-  isShallowEqual,
-  toBrandedType,
-} from "./utils";
 
 /**
  * Represents the difference between two objects of the same type.
@@ -510,7 +528,7 @@ export class AppStateChange implements Change<AppState> {
       // shouldn't really happen, but just in case
       console.error(`Couldn't apply appstate change`, e);
 
-      if (import.meta.env.DEV || import.meta.env.MODE === ENV.TEST) {
+      if (isTestEnv() || isDevEnv()) {
         throw e;
       }
 
@@ -548,7 +566,7 @@ export class AppStateChange implements Change<AppState> {
       // if postprocessing fails it does not make sense to bubble up, but let's make sure we know about it
       console.error(`Couldn't postprocess appstate change deltas.`);
 
-      if (import.meta.env.DEV || import.meta.env.MODE === ENV.TEST) {
+      if (isTestEnv() || isDevEnv()) {
         throw e;
       }
     } finally {
@@ -626,6 +644,18 @@ export class AppStateChange implements Change<AppState> {
             );
 
             break;
+          case "croppingElementId": {
+            const croppingElementId = nextAppState[key];
+            const element =
+              croppingElementId && nextElements.get(croppingElementId);
+
+            if (element && !element.isDeleted) {
+              visibleDifferenceFlag.value = true;
+            } else {
+              nextAppState[key] = null;
+            }
+            break;
+          }
           case "editingGroupId":
             const editingGroupId = nextAppState[key];
 
@@ -756,6 +786,7 @@ export class AppStateChange implements Change<AppState> {
       selectedElementIds,
       editingLinearElementId,
       selectedLinearElementId,
+      croppingElementId,
       ...standaloneProps
     } = delta as ObservedAppState;
 
@@ -779,7 +810,10 @@ export class AppStateChange implements Change<AppState> {
   }
 }
 
-type ElementPartial = Omit<ElementUpdate<OrderedExcalidrawElement>, "seed">;
+type ElementPartial<T extends ExcalidrawElement = ExcalidrawElement> = Omit<
+  ElementUpdate<Ordered<T>>,
+  "seed"
+>;
 
 /**
  * Elements change is a low level primitive to capture a change between two sets of elements.
@@ -822,7 +856,7 @@ export class ElementsChange implements Change<SceneElementsMap> {
       change = new ElementsChange(added, removed, updated);
     }
 
-    if (import.meta.env.DEV || import.meta.env.MODE === ENV.TEST) {
+    if (isTestEnv() || isDevEnv()) {
       ElementsChange.validate(change, "added", this.satisfiesAddition);
       ElementsChange.validate(change, "removed", this.satisfiesRemoval);
       ElementsChange.validate(change, "updated", this.satisfiesUpdate);
@@ -1086,7 +1120,7 @@ export class ElementsChange implements Change<SceneElementsMap> {
     } catch (e) {
       console.error(`Couldn't apply elements change`, e);
 
-      if (import.meta.env.DEV || import.meta.env.MODE === ENV.TEST) {
+      if (isTestEnv() || isDevEnv()) {
         throw e;
       }
 
@@ -1100,7 +1134,6 @@ export class ElementsChange implements Change<SceneElementsMap> {
     try {
       // TODO: #7348 refactor away mutations below, so that we couldn't end up in an incosistent state
       ElementsChange.redrawTextBoundingBoxes(nextElements, changedElements);
-      ElementsChange.redrawBoundArrows(nextElements, changedElements);
 
       // the following reorder performs also mutations, but only on new instances of changed elements
       // (unless something goes really bad and it fallbacks to fixing all invalid indices)
@@ -1109,13 +1142,16 @@ export class ElementsChange implements Change<SceneElementsMap> {
         changedElements,
         flags,
       );
+
+      // Need ordered nextElements to avoid z-index binding issues
+      ElementsChange.redrawBoundArrows(nextElements, changedElements);
     } catch (e) {
       console.error(
         `Couldn't mutate elements after applying elements change`,
         e,
       );
 
-      if (import.meta.env.DEV || import.meta.env.MODE === ENV.TEST) {
+      if (isTestEnv() || isDevEnv()) {
         throw e;
       }
     } finally {
@@ -1212,6 +1248,18 @@ export class ElementsChange implements Change<SceneElementsMap> {
       Object.assign(directlyApplicablePartial, {
         boundElements: mergedBoundElements,
       });
+    }
+
+    if (isImageElement(element)) {
+      const _delta = delta as Delta<ElementPartial<ExcalidrawImageElement>>;
+      // we want to override `crop` only if modified so that we don't reset
+      // when undoing/redoing unrelated change
+      if (_delta.deleted.crop || _delta.inserted.crop) {
+        Object.assign(directlyApplicablePartial, {
+          // apply change verbatim
+          crop: _delta.inserted.crop ?? null,
+        });
+      }
     }
 
     if (!flags.containsVisibleDifference) {
@@ -1460,7 +1508,9 @@ export class ElementsChange implements Change<SceneElementsMap> {
   ) {
     for (const element of changed.values()) {
       if (!element.isDeleted && isBindableElement(element)) {
-        updateBoundElements(element, elements);
+        updateBoundElements(element, elements, {
+          changedElements: changed,
+        });
       }
     }
   }
@@ -1515,7 +1565,7 @@ export class ElementsChange implements Change<SceneElementsMap> {
       // if postprocessing fails, it does not make sense to bubble up, but let's make sure we know about it
       console.error(`Couldn't postprocess elements change deltas.`);
 
-      if (import.meta.env.DEV || import.meta.env.MODE === ENV.TEST) {
+      if (isTestEnv() || isDevEnv()) {
         throw e;
       }
     } finally {

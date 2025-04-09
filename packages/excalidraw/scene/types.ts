@@ -1,12 +1,13 @@
-import type { RoughCanvas } from "roughjs/bin/canvas";
-import type { Drawable } from "roughjs/bin/core";
+import type { UserIdleState } from "@excalidraw/common";
 import type {
   ExcalidrawElement,
-  ExcalidrawTextElement,
   NonDeletedElementsMap,
   NonDeletedExcalidrawElement,
   NonDeletedSceneElementsMap,
-} from "../element/types";
+} from "@excalidraw/element/types";
+
+import type { MakeBrand } from "@excalidraw/common/utility-types";
+
 import type {
   AppClassProperties,
   AppState,
@@ -15,10 +16,11 @@ import type {
   InteractiveCanvasAppState,
   StaticCanvasAppState,
   SocketId,
-  UserIdleState,
   Device,
+  PendingExcalidrawElements,
 } from "../types";
-import type { MakeBrand } from "../utility-types";
+import type { RoughCanvas } from "roughjs/bin/canvas";
+import type { Drawable } from "roughjs/bin/core";
 
 export type RenderableElementsMap = NonDeletedElementsMap &
   MakeBrand<"RenderableElementsMap">;
@@ -34,6 +36,7 @@ export type StaticCanvasRenderConfig = {
   isExporting: boolean;
   embedsValidationStatus: EmbedsValidationStatus;
   elementsPendingErasure: ElementsPendingErasure;
+  pendingFlowchartNodes: PendingExcalidrawElements | null;
 };
 
 export type SVGRenderConfig = {
@@ -45,6 +48,13 @@ export type SVGRenderConfig = {
   frameRendering: AppState["frameRendering"];
   canvasBackgroundColor: AppState["viewBackgroundColor"];
   embedsValidationStatus: EmbedsValidationStatus;
+  /**
+   * whether to attempt to reuse images as much as possible through symbols
+   * (reduces SVG size, but may be incompoatible with some SVG renderers)
+   *
+   * @default true
+   */
+  reuseImages: boolean;
 };
 
 export type InteractiveCanvasRenderConfig = {
@@ -91,14 +101,21 @@ export type InteractiveSceneRenderConfig = {
   callback: (data: RenderInteractiveSceneCallback) => void;
 };
 
+export type NewElementSceneRenderConfig = {
+  canvas: HTMLCanvasElement | null;
+  rc: RoughCanvas;
+  newElement: ExcalidrawElement | null;
+  elementsMap: RenderableElementsMap;
+  allElementsMap: NonDeletedSceneElementsMap;
+  scale: number;
+  appState: AppState;
+  renderConfig: StaticCanvasRenderConfig;
+};
+
 export type SceneScroll = {
   scrollX: number;
   scrollY: number;
 };
-
-export interface Scene {
-  elements: ExcalidrawTextElement[];
-}
 
 export type ExportType =
   | "png"

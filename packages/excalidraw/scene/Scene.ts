@@ -1,3 +1,25 @@
+import throttle from "lodash.throttle";
+
+import {
+  randomInteger,
+  arrayToMap,
+  toBrandedType,
+  isDevEnv,
+  isTestEnv,
+} from "@excalidraw/common";
+import { isNonDeletedElement } from "@excalidraw/element";
+import { isFrameLikeElement } from "@excalidraw/element/typeChecks";
+import { getElementsInGroup } from "@excalidraw/element/groups";
+
+import {
+  syncInvalidIndices,
+  syncMovedIndices,
+  validateFractionalIndices,
+} from "@excalidraw/element/fractionalIndex";
+
+import { getSelectedElements } from "@excalidraw/element/selection";
+
+import type { LinearElementEditor } from "@excalidraw/element/linearElementEditor";
 import type {
   ExcalidrawElement,
   NonDeletedExcalidrawElement,
@@ -8,22 +30,11 @@ import type {
   NonDeletedSceneElementsMap,
   OrderedExcalidrawElement,
   Ordered,
-} from "../element/types";
-import { isNonDeletedElement } from "../element";
-import type { LinearElementEditor } from "../element/linearElementEditor";
-import { isFrameLikeElement } from "../element/typeChecks";
-import { getSelectedElements } from "./selection";
+} from "@excalidraw/element/types";
+
+import type { Assert, SameType } from "@excalidraw/common/utility-types";
+
 import type { AppState } from "../types";
-import type { Assert, SameType } from "../utility-types";
-import { randomInteger } from "../random";
-import {
-  syncInvalidIndices,
-  syncMovedIndices,
-  validateFractionalIndices,
-} from "../fractionalIndex";
-import { arrayToMap } from "../utils";
-import { toBrandedType } from "../utils";
-import { ENV } from "../constants";
 
 type ElementIdKey = InstanceType<typeof LinearElementEditor>["elementId"];
 type ElementKey = ExcalidrawElement | ElementIdKey;
@@ -49,6 +60,20 @@ const getNonDeletedElements = <T extends ExcalidrawElement>(
   }
   return { elementsMap, elements };
 };
+
+const validateIndicesThrottled = throttle(
+  (elements: readonly ExcalidrawElement[]) => {
+    if (isDevEnv() || isTestEnv() || window?.DEBUG_FRACTIONAL_INDICES) {
+      validateFractionalIndices(elements, {
+        // throw only in dev & test, to remain functional on `DEBUG_FRACTIONAL_INDICES`
+        shouldThrow: isDevEnv() || isTestEnv(),
+        includeBoundTextValidation: true,
+      });
+    }
+  },
+  1000 * 60,
+  { leading: true, trailing: false },
+);
 
 const hashSelectionOpts = (
   opts: Parameters<InstanceType<typeof Scene>["getSelectedElements"]>[0],
@@ -105,6 +130,9 @@ class Scene {
     }
   }
 
+  /**
+   * @deprecated pass down `app.scene` and use it directly
+   */
   static getScene(elementKey: ElementKey): Scene | null {
     if (isIdKey(elementKey)) {
       return this.sceneMapById.get(elementKey) || null;
@@ -271,10 +299,7 @@ class Scene {
         : Array.from(nextElements.values());
     const nextFrameLikes: ExcalidrawFrameLikeElement[] = [];
 
-    if (import.meta.env.DEV || import.meta.env.MODE === ENV.TEST) {
-      // throw on invalid indices in test / dev to potentially detect cases were we forgot to sync moved elements
-      validateFractionalIndices(_nextElements.map((x) => x.index));
-    }
+    validateIndicesThrottled(_nextElements);
 
     this.elements = syncInvalidIndices(_nextElements);
     this.elementsMap.clear();
@@ -358,6 +383,10 @@ class Scene {
   }
 
   insertElementsAtIndex(elements: ExcalidrawElement[], index: number) {
+    if (!elements.length) {
+      return;
+    }
+
     if (!Number.isFinite(index) || index < 0) {
       throw new Error(
         "insertElementAtIndex can only be called with index >= 0",
@@ -384,7 +413,11 @@ class Scene {
   };
 
   insertElements = (elements: ExcalidrawElement[]) => {
-    const index = elements[0].frameId
+    if (!elements.length) {
+      return;
+    }
+
+    const index = elements[0]?.frameId
       ? this.getElementIndex(elements[0].frameId)
       : this.elements.length;
 
@@ -409,6 +442,18 @@ class Scene {
       return this.getElement(element.containerId) || null;
     }
     return null;
+  };
+
+  getElementsFromId = (id: string): ExcalidrawElement[] => {
+    const elementsMap = this.getNonDeletedElementsMap();
+    // first check if the id is an element
+    const el = elementsMap.get(id);
+    if (el) {
+      return [el];
+    }
+
+    // then, check if the id is a group
+    return getElementsInGroup(elementsMap, id);
   };
 }
 
